@@ -1,0 +1,51 @@
+def getTag(String versionNumber) {
+    versionNumber.contains('dev') || versionNumber.contains('SNAPSHOT')
+        ? versionNumber.split('\\+')[0]
+        : versionNumber
+}
+
+def getRepo(String versionNumber) {
+    versionNumber.contains('dev') || versionNumber.contains('SNAPSHOT')
+        ? 'repo.dev002.local/fct-dp-laboratory-docker-dev'
+        : 'repo.dev002.local/fct-dp-laboratory-docker-dev'
+}
+
+task createVersionFile() {
+    doLast {
+        project.file("$buildDir/deploy").mkdirs()
+        new File("$projectDir/build/deploy/.env").text = "VERSION=" + getTag("${project.version}")
+    }
+}
+
+jib {
+
+    def tag = getTag("${project.version}")
+    println "Tag: ${tag}"
+    def repo = getRepo("${project.version}")
+    println "Repo: ${repo}"
+
+    def user = find("ARTIFACTORY_LOGIN")
+    println "User: ${user}"
+    def password = find("ARTIFACTORY_PASSWORD")
+
+    to.image = "${repo}/${project.name}"
+    to.tags = ["latest", tag]
+    to.auth.username = user
+    to.auth.password = password
+    from.image = "repo.dev002.local/docker/bellsoft/liberica-openjdk-alpine:11.0.6"
+    from.auth.username = user
+    from.auth.password = password
+    container.jvmFlags = ["-Xmx350M",
+                          "-Xms350M",
+                          "-server",
+                          "-XX:+ScavengeBeforeFullGC",
+                          "-XX:+CMSScavengeBeforeRemark",
+                          "-XX:+UseG1GC",
+                          "-Djava.awt.headless=true",
+                          "-Duser.timezone=GMT",
+                          "-Dfile.encoding=UTF-8"]
+    container.ports = ["9090", "8080"]
+
+}
+
+build.finalizedBy 'createVersionFile'

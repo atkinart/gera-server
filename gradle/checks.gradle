@@ -1,0 +1,96 @@
+dependencies {
+    spotbugs configurations.spotbugsPlugins.dependencies
+    spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.8.0'
+}
+
+ext {
+    jacocoExc = ['**Application**',
+                 '**Utils**',
+                 '**Client**',
+                 '**Exception',
+                 'ru.sibur.digital.core.onboarding.configuration.**',
+                 'ru.sibur.digital.core.onboarding.security.**'
+    ]
+}
+
+test {
+    useJUnitPlatform()
+    failFast = true
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+
+    jacoco {
+        enabled = true
+    }
+}
+
+check.dependsOn 'spotbugsMain'
+test.finalizedBy 'jacocoTestReport', 'jacocoTestCoverageVerification'
+
+checkstyle {
+
+    toolVersion = '8.18'
+
+    configDir = file("$rootProject.projectDir/config/checkstyle")
+    reportsDir = file("$project.buildDir/reports/checkstyle")
+
+}
+
+tasks.withType(Checkstyle) {
+    reports {
+        xml.enabled true
+        html.enabled true
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.5"
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        csv.enabled false
+        html.destination file("${buildDir}/reports/jacoco")
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExc)
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            limit {
+                counter = 'INSTRUCTION'
+                minimum = 0.65
+            }
+            limit {
+                counter = 'METHOD'
+                minimum = 0.65
+            }
+            excludes = jacocoExc.stream().map { it.replace('/', '.') }.collect()
+        }
+    }
+}
+
+spotbugsMain {
+    reports {
+        xml.enabled = true
+        html.enabled = true
+    }
+}
+
+spotbugs {
+    toolVersion = '4.0.0'
+    ignoreFailures = false
+    showProgress = true
+    effort = "min"
+// TODO: boost this to low once low priority issues are fixed.
+    reportLevel = "high"
+
+}
